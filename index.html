@@ -1884,16 +1884,25 @@ async function backup(){
   return false;
 }
 async function shareBackup(){
+  let f=null;
   try{
-    const blob=await buildBackup();let f=null;
+    toast('Preparing your backup…');
+    const blob=await buildBackup();
     for(const [nm,ty] of [[`tally-backup-${today()}.json`,'application/json'],[`tally-backup-${today()}.json.txt`,'text/plain'],[`tally-backup-${today()}.txt`,'text/plain']]){
       const c=new File([blob],nm,{type:ty});if(navigator.canShare&&navigator.canShare({files:[c]})){f=c;break}}
-    if(f){
-      try{await navigator.share({files:[f],title:'Tally backup'})}catch(e){if(e&&e.name==='AbortError')return false;throw e}
-      try{localStorage.setItem('tally-lastbackup',today());localStorage.removeItem('tally-dirty');bkBar()}catch{}
-      toast('Backup shared. Pick Drive to keep it safe.');return true}
   }catch{}
-  toast('Sharing isn’t available here, saving to your phone instead');return backup();
+  if(!f){toast('Sharing isn’t available here, saving to your phone instead');return backup()}
+  $('#sheetbody').innerHTML=`<div class="grab"></div><div class="sheethead"><h2 id="sheettitle">Backup ready</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>
+  <p class="lede" style="margin:0 0 14px;color:var(--muted)">Tap below, then pick Google Drive and Save.</p>
+  <button class="btn wide" id="shNow">Choose where to send it</button>`;
+  showSheet();
+  $('#x').onclick=closeSheet;
+  $('#shNow').onclick=async()=>{
+    try{await navigator.share({files:[f],title:'Tally backup'})}
+    catch(e){if(e&&e.name==='AbortError')return;closeSheet();toast('Couldn’t open sharing, saving to your phone instead');return backup()}
+    try{localStorage.setItem('tally-lastbackup',today());localStorage.removeItem('tally-dirty');bkBar()}catch{}
+    closeSheet();toast('Backup shared. Make sure it saved in Drive.');
+  };
 }
 function driveOk(){return !!(mcp&&autoRead)}
 let driveBusy=false;
