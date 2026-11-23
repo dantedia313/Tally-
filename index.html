@@ -1899,7 +1899,7 @@ async function shareBackup(){
   $('#x').onclick=closeSheet;
   $('#shNow').onclick=async()=>{
     try{await navigator.share({files:[f],title:'Tally backup'})}
-    catch(e){if(e&&e.name==='AbortError')return;closeSheet();toast('Couldn’t open sharing, saving to your phone instead');return backup()}
+    catch(e){if(e&&e.name==='AbortError')return;closeSheet();toast('Sharing failed ('+((e&&e.name)||'error')+': '+String((e&&e.message)||'').slice(0,60)+'). Saving to your phone instead');await new Promise(r=>setTimeout(r,3500));return backup()}
     try{localStorage.setItem('tally-lastbackup',today());localStorage.removeItem('tally-dirty');bkBar()}catch{}
     closeSheet();toast('Backup shared. Make sure it saved in Drive.');
   };
