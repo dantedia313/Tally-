@@ -859,6 +859,7 @@ function renderTaxes(){
     <p class="note" style="margin:-4px 0 10px">${(()=>{let l='';try{l=localStorage.getItem('tally-lastbackup')||''}catch{}return l?'Last backup: '+fd(l):'No backup made yet.'})()}</p>
     <label class="kv" style="align-items:center;cursor:pointer;gap:12px"><span class="k">Auto-read photos<small>${autoRead?'On: receipts are read on this phone to fill in the store, date and amounts. Nothing is uploaded.':'Off: you fill in the details yourself.'}</small></span><input type="checkbox" id="ar" ${autoRead?'checked':''} style="width:24px;height:24px;flex:none;accent-color:var(--acc)"></label>
     ${driveOk()?'<button class="btn wide" id="bkDrive" style="margin-bottom:10px">☁ Back up to Google Drive</button>':''}
+    <button class="btn wide" id="bkShare" style="margin-bottom:10px">Share backup (send to Drive)</button>
     <div class="btnrow"><button class="btn sec" id="bk">Back up to phone</button><button class="btn sec" id="rs">Restore</button></div>
     <button class="ghost" data-priv style="margin-top:10px;width:100%">🔒 Privacy info & delete data</button>
     <button class="ghost" data-terms style="margin-top:8px;width:100%">📄 Terms of use</button>
@@ -868,6 +869,7 @@ function renderTaxes(){
   $('#pdfB').onclick=()=>savePdf(y,'business');$('#pdfP').onclick=()=>savePdf(y,'personal');
   $('#bk').onclick=backup;
   $('#bkDrive')&&($('#bkDrive').onclick=backupDrive);
+  $('#bkShare')&&($('#bkShare').onclick=shareBackup);
   $('#editBiz').onclick=()=>openSetup(true);
   $('#ar').onchange=e=>{autoRead=e.target.checked;try{localStorage.setItem('tally-autoread',autoRead?'on':'off')}catch{}renderTaxes();toast(autoRead?'Auto-read is on':'Auto-read is off')};
   $('#rs').onclick=()=>{try{$('#restoreIn').click()}catch(e){toast('Can’t open the file picker here')}};
@@ -1881,6 +1883,16 @@ async function backup(){
   }catch{toast('Couldn’t make the backup')}
   return false;
 }
+async function shareBackup(){
+  try{
+    const blob=await buildBackup();const f=new File([blob],`tally-backup-${today()}.json`,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){
+      try{await navigator.share({files:[f],title:'Tally backup'})}catch(e){if(e&&e.name==='AbortError')return false;throw e}
+      try{localStorage.setItem('tally-lastbackup',today());localStorage.removeItem('tally-dirty');bkBar()}catch{}
+      toast('Backup shared. Pick Drive to keep it safe.');return true}
+  }catch{}
+  toast('Sharing isn’t available here, saving to your phone instead');return backup();
+}
 function driveOk(){return !!(mcp&&autoRead)}
 let driveBusy=false;
 async function backupDrive(){
@@ -1924,13 +1936,14 @@ function backupPrompt(){
   $('#sheetbody').innerHTML=`<div class="grab"></div><div class="sheethead"><h2 id="sheettitle">Time for your monthly backup</h2><button class="iconbtn" id="x" aria-label="Later">✕</button></div>
   <p class="lede" style="margin:0 0 6px;color:var(--muted)">Your records live only on this phone. A backup protects ${n} entr${n===1?'y':'ies'} and ${ph} photo${ph===1?'':'s'} if the phone is lost, reset or cleared.</p>
   <p class="note" style="margin-top:0">${lb?'Last backup: '+fd(lb):'You haven’t made a backup yet.'} ${driveOk()?'Google Drive keeps a safe copy off this phone.':'After it saves, upload the file to Google Drive.'}</p>
-  ${driveOk()?'<button class="btn wide" id="bkDr" style="margin-top:14px">☁ Back up to Google Drive</button>':''}
+  ${driveOk()?'<button class="btn wide" id="bkDr" style="margin-top:14px">☁ Back up to Google Drive</button>':'<button class="btn wide" id="bkSh" style="margin-top:14px">Share backup (send to Drive)</button>'}
   <div class="btnrow" style="margin-top:${driveOk()?'10':'14'}px"><button class="btn sec" id="bkLater">Later</button><button class="btn ${driveOk()?'sec':''}" id="bkNow">${driveOk()?'Save to phone':'Back up now'}</button></div>`;
   showSheet();
   const later=()=>{try{localStorage.setItem('tally-bksnooze',today())}catch{}closeSheet();toast('OK — I’ll remind you again tomorrow')};
   $('#x').onclick=later;$('#bkLater').onclick=later;
   $('#bkNow').onclick=async()=>{closeSheet();await backup();if(!backupDue()){try{renderIfData()}catch{}}};
   $('#bkDr')&&($('#bkDr').onclick=async()=>{closeSheet();await backupDrive()});
+  $('#bkSh')&&($('#bkSh').onclick=async()=>{closeSheet();await shareBackup()});
 }
 function renderIfData(){if(st.view==='taxes')render()}
 $('#restoreIn').onchange=async e=>{
@@ -1981,7 +1994,7 @@ function bkBar(){
     b.style.cssText='position:fixed;left:12px;right:12px;bottom:92px;z-index:60;background:#1b2330;color:#fff;border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:10px;font:600 14px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25)';
     b.innerHTML='<span style="flex:1">New entries not backed up yet</span><button id="bkbarGo" style="background:#fff;color:#5b3a8a;border:0;border-radius:10px;padding:9px 14px;font:700 14px system-ui,sans-serif">Back up now</button>';
     document.body.appendChild(b);
-    document.getElementById('bkbarGo').onclick=async()=>{await backup()}}
+    document.getElementById('bkbarGo').onclick=async()=>{await shareBackup()}}
 }
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 setBook('personal');
