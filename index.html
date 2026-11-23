@@ -1885,8 +1885,10 @@ async function backup(){
 }
 async function shareBackup(){
   try{
-    const blob=await buildBackup();const f=new File([blob],`tally-backup-${today()}.json`,{type:'application/json'});
-    if(navigator.canShare&&navigator.canShare({files:[f]})){
+    const blob=await buildBackup();let f=null;
+    for(const [nm,ty] of [[`tally-backup-${today()}.json`,'application/json'],[`tally-backup-${today()}.json.txt`,'text/plain'],[`tally-backup-${today()}.txt`,'text/plain']]){
+      const c=new File([blob],nm,{type:ty});if(navigator.canShare&&navigator.canShare({files:[c]})){f=c;break}}
+    if(f){
       try{await navigator.share({files:[f],title:'Tally backup'})}catch(e){if(e&&e.name==='AbortError')return false;throw e}
       try{localStorage.setItem('tally-lastbackup',today());localStorage.removeItem('tally-dirty');bkBar()}catch{}
       toast('Backup shared. Pick Drive to keep it safe.');return true}
